@@ -5,6 +5,8 @@
 ### GitHub Pages
 1. GitHub 저장소 생성
 2. Settings > Pages 에서 배포 브랜치 및 폴더 설정
+3. * https://hyeonuk02.github.io/Mogakso_LLM/
+   * 직접 배포한 테스트용 웹페이지입니다.
 
 ### AWS EC2
 1. AWS 프리티어 가입 후 EC2 인스턴스 생성
