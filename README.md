@@ -16,9 +16,9 @@
 
 # 2주차
 ## 실습 목표
-* Railway를 활용해 PostgreSQL 클라우드 데이터베이스를 생성하고, Flask 앱에서 연결 실습
-* Redis의 개념을 이해하고 Docker 기반 Redis 환경을 구성하여 기본 명령어 및 Flask 연동 실습 진행
-
+- Railway를 활용해 PostgreSQL 클라우드 데이터베이스를 생성하고 Flask 앱에서 연동 실습
+- Redis의 개념을 이해하고, Docker 기반 Redis 환경을 구성하여 기본 명령어 및 Flask 연동 실습 수행
+---
 ## 실습 내용
   * **PostgreSQL**
     * Railway에서 PostgreSQL 클라우드 DB 생성
