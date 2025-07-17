@@ -20,7 +20,7 @@
 * Redis의 개념을 이해하고 Docker 기반 Redis 환경을 구성하여 기본 명령어 및 Flask 연동 실습 진행
 
 ## 실습 내용
-### Railway를 활용한 PostgreSQL 클라우드 DB 생성
+### Railway를 활용한 PostgreSQL 클라우드 DB 생성
 1. Public Network 설정을 통해 외부 접속용 커넥션 URL 확인
 2. SQLAlchemy에서 사용할 수 있도록 .env 파일에 DATABASE_URL 등록
 ### Flask 프로젝트에서 PostgreSQL 연결 구성
