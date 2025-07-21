@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgres:17 # PostgreSQL 최신 17버전 사용 / 기본 이미지 사용
+    container_name: llm_db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=llm_db 
+      - TZ=Asia/Seoul
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  cache:
+    image: redis:7.4.5
+    container_name: llm_cache
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
