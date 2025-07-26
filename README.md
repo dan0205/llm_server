@@ -44,4 +44,6 @@
     * Flask에서 redis-py로 Redis와 연동
     * set 및 get 명령어를 통해 Redis에 데이터 저장 및 조회
     * 브라우저를 통해 “Hello from Redis!” 응답 확인
-
+    
+# 3주차
+---
