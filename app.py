@@ -7,8 +7,13 @@ import logging
 # 환경변수 로드
 load_dotenv()
 
-# 로그 설정
+# logs 폴더 없으면 생성
+if not os.path.exists("logs"):
+    os.makedirs("logs")
+
+# 로그 설정 (logs/app.log에 저장)
 logging.basicConfig(
+    filename='logs/app.log',
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
