@@ -11,12 +11,15 @@ load_dotenv()
 if not os.path.exists("logs"):
     os.makedirs("logs")
 
-# 로그 설정 (logs/app.log에 저장)
-logging.basicConfig(
-    filename='logs/app.log',
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
+# 로그 포맷 설정 (파일 + 콘솔 핸들러 동시)
+log_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+file_handler = logging.FileHandler('logs/app.log')
+file_handler.setFormatter(log_formatter)
+
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(log_formatter)
+
+logging.basicConfig(level=logging.INFO, handlers=[file_handler, console_handler])
 
 # Flask 설정
 app = Flask(__name__)
@@ -31,6 +34,7 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50))
 
+# DB 테이블 생성
 with app.app_context():
     db.create_all()
     logging.info("데이터베이스 테이블 생성 완료")
