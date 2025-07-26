@@ -1,0 +1,6 @@
+[build]
+builder = "NIXPACKS"
+nixpacksPlan = "python"
+
+[start]
+cmd = "python3 app.py"
