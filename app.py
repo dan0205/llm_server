@@ -44,4 +44,4 @@ def index():
 # 앱 실행
 if __name__ == "__main__":
     logging.info("애플리케이션 시작됨")
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5001, debug=True)
