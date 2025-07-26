@@ -1,6 +1,5 @@
 [build]
-builder = "NIXPACKS"
-nixpacksPlan = "python"
+nixpacksPlan = { providers = ["python"] }
 
 [start]
 cmd = "python3 app.py"
