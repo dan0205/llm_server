@@ -3,20 +3,17 @@ name: Deploy to Railway
 on:
   push:
     branches:
-      - main
+      - main  # main 브랜치에 push 될 때 실행
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     container: ghcr.io/railwayapp/cli:latest
     env:
-      SVC_ID: your-service-id  # Railway 서비스 아이디
       RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Deploy via railway CLI
-        run: |
-          railway link
-          railway up --service=$SVC_ID
+      - name: Deploy to Railway
+        run: railway up --service=26a5f7ea-fcfc-4f1a-8de0-1edcc0cb6e4d
