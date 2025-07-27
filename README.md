@@ -45,45 +45,76 @@
     * set 및 get 명령어를 통해 Redis에 데이터 저장 및 조회
     * 브라우저를 통해 “Hello from Redis!” 응답 확인
     
-# 3주차
-## 실습 목표
+## 3주차
+### 실습 목표
+
 - GitHub Actions를 활용해 코드 푸시 시 Railway로 자동 배포되는 CI/CD 파이프라인 구성
 - 배포 자동화 과정에서 발생하는 인증, 서비스 ID 설정 문제 등을 해결하며 실전 경험 확보
 - Railway 환경에서 배포 자동화 후 애플리케이션 정상 작동 확인
+- 서버 상태 확인 및 로그 파일 기록을 통한 모니터링 및 로깅 기초 구현
 
 ---
 
-## 실습 내용
+### 실습 내용
 
-### GitHub Actions 설정
+#### GitHub Actions 설정
 - `.github/workflows/deploy.yml` 파일 생성
 - `main` 브랜치에 push 시 자동으로 배포되는 workflow 정의
-- 공식 railway CLI 도커 이미지(`ghcr.io/railwayapp/cli:latest`) 사용
+- 공식 railway CLI 도커 이미지 (`ghcr.io/railwayapp/cli:latest`) 사용
 - `RAILWAY_TOKEN`을 GitHub Secrets에 등록하여 인증 처리
 - `railway up` 명령어를 사용해 배포 자동화 구성 완료
 
-### Railway CLI 및 프로젝트 연동
+#### Railway CLI 및 프로젝트 연동
 - 로컬에서 `railway login` 후, `railway link` 명령어로 프로젝트 연동
 - 프로젝트 ID 및 서비스 ID 확보
-- `.railway/project.json` 파일 자동 생성 안 될 경우 직접 처리
+- `.railway/project.json` 파일 자동 생성되지 않는 경우 수동 처리
 
-### 문제 해결 과정
+#### 문제 해결 과정
 - GitHub Actions에서 `Unauthorized. Please login with 'railway login'` 오류 발생
 - 원인: `RAILWAY_TOKEN` 미등록 또는 잘못된 서비스 ID
 - 해결: Secrets 등록 및 `.yml` 파일 수정 → 재배포 성공
 
-### 결과 확인
-- GitHub Actions 로그에서 확인
+#### 결과 확인
+- GitHub Actions 로그에서 workflow 실행 확인
 - Railway Dashboard에서 최신 커밋으로 배포 완료 확인
-- 애플리케이션 정상 작동 확인
+- 브라우저 접속 시 애플리케이션 정상 작동 확인
 
 ---
 
-## 활용 기술 스택 및 도구
-- GitHub Actions (CI/CD 자동화)
-- Railway CLI / 배포용 Docker 이미지
-- GitHub Secrets (`RAILWAY_TOKEN`)
-- Python Flask 앱 기반 서비스 자동 배포
+### 로그 관리 및 서버 모니터링 기초
 
+#### 로그 관리
+- Python `logging` 모듈을 사용해 로그 파일 저장 설정
+    ```python
+    logging.basicConfig(
+        filename='logs/app.log',
+        level=logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(message)s'
+    )
+    ```
+- `logs` 폴더가 존재하지 않을 경우 자동 생성 처리
+- Flask 앱 시작, DB 초기화, 요청 수신 등의 이벤트에 로그 삽입
+- 로그 파일(`logs/app.log`)에 실시간으로 기록되는지 확인
 
- 
+#### 모니터링 기초
+- `/` 경로 접속 시 Flask에서 DB 조회 결과 반환
+- 정상 요청은 `logging.info()`, 오류 발생 시 `logging.error()`로 기록
+- 브라우저 또는 curl을 통해 서버 상태 확인 및 로그 변화 추적
+
+---
+
+### 활용 기술 스택 및 도구
+
+- **GitHub Actions** (CI/CD 자동화)
+- **Railway CLI** / 배포용 Docker 이미지
+- **GitHub Secrets** (RAILWAY_TOKEN)
+- **Python Flask 앱** 기반의 클라우드 배포
+- **Python logging 모듈** 기반의 로그 파일 저장
+- **간단한 헬스 체크 및 로그 추적을 통한 서버 상태 모니터링**
+
+---
+
+### 요약
+
+이번 실습을 통해 **자동 배포(CI/CD)**, **프로젝트 연동 및 문제 해결 경험**, **애플리케이션 상태 확인**, 그리고 **로그 기록 및 모니터링**까지 서버 운영에 필수적인 흐름을 처음부터 끝까지 경험할 수 있었습니다.
+
