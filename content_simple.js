@@ -14,11 +14,35 @@ const JARGON_DATA = {
   "ㄴㄴ": "노노의 줄임말로 부정을 표현"
 };
 
+// 중복 방지 변수
+let lastSelectedText = '';
+let tooltipShown = false;
+let lastProcessTime = 0;
+
+// 툴팁 닫기 함수
+function closeAllTooltips() {
+  var existingTooltip = document.getElementById('jargon-tooltip');
+  if (existingTooltip) {
+    existingTooltip.remove();
+  }
+  tooltipShown = false;
+}
+
 // 텍스트 선택 감지
 document.addEventListener('mouseup', function() {
   var text = window.getSelection().toString().trim();
   if (text.length > 0) {
     console.log('선택된 텍스트:', text);
+    
+    // 시간 기반 중복 방지 (1초 이내 같은 텍스트면 무시)
+    var currentTime = Date.now();
+    if (text === lastSelectedText && tooltipShown && (currentTime - lastProcessTime) < 1000) {
+      return;
+    }
+    
+    lastSelectedText = text;
+    lastProcessTime = currentTime;
+    tooltipShown = true;
     
     // 신조어 검색
     var foundJargons = [];
@@ -38,7 +62,46 @@ document.addEventListener('mouseup', function() {
       // 신조어가 없으면 간단한 알림
       showSimpleNotification('선택된 텍스트: ' + text);
     }
+  } else {
+    // 텍스트 선택이 해제되면 상태 초기화
+    setTimeout(function() {
+      var currentText = window.getSelection().toString().trim();
+      if (!currentText) {
+        lastSelectedText = '';
+        tooltipShown = false;
+      }
+    }, 100);
   }
+});
+
+// 다른 곳 클릭 시 툴팁 닫기
+document.addEventListener('click', function(e) {
+  // 툴팁이나 알림창을 클릭한 경우는 무시
+  if (e.target.closest('#jargon-tooltip') || 
+      e.target.closest('[style*="position: fixed"][style*="z-index: 10002"]')) {
+    return;
+  }
+  
+  // 텍스트가 선택되어 있으면 클릭 이벤트 무시 (드래그 후 클릭 방지)
+  var selectedText = window.getSelection().toString().trim();
+  if (selectedText.length > 0) {
+    return;
+  }
+  
+  // 다른 곳을 클릭하면 툴팁 닫기
+  closeAllTooltips();
+});
+
+// 더블클릭 시 툴팁 닫기
+document.addEventListener('dblclick', function(e) {
+  // 툴팁이나 알림창을 더블클릭한 경우는 무시
+  if (e.target.closest('#jargon-tooltip') || 
+      e.target.closest('[style*="position: fixed"][style*="z-index: 10002"]')) {
+    return;
+  }
+  
+  // 다른 곳을 더블클릭하면 툴팁 닫기
+  closeAllTooltips();
 });
 
 // 신조어 툴팁 표시
@@ -130,7 +193,7 @@ function showJargonTooltip(jargon) {
   });
   
   closeBtn.addEventListener('click', function() {
-    tooltip.remove();
+    closeAllTooltips();
   });
   
   // 내용 스타일
@@ -142,12 +205,13 @@ function showJargonTooltip(jargon) {
   
   document.body.appendChild(tooltip);
   
-  // 5초 후 자동 제거
+  // 8초 후 자동 제거 (더 오래 보이도록)
   setTimeout(function() {
     if (tooltip.parentNode) {
       tooltip.remove();
+      tooltipShown = false; // 자동 제거 시에도 상태 초기화
     }
-  }, 5000);
+  }, 8000);
 }
 
 // 간단한 알림 표시
