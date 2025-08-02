@@ -17,5 +17,4 @@ async def startup_event():
 
 @app.get("/", tags=["Root"])
 async def read_root():
-    return {"message": "Welcome to the Jargon Interpreter API!"}
- """
+    return {"message": "Welcome to the Jargon Interpreter API!"} """

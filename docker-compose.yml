@@ -14,7 +14,7 @@ services:
     restart: unless-stopped
 
   cache:
-    image: redis:7.4.5
+    image: redis:7.2
     container_name: llm_cache
     ports:
       - "6379:6379"
