@@ -1,11 +1,12 @@
-""" from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings
+
+# env 파일에 이런식으로 값을 넣어야 하는 걸 알려주는 설계도
+# 해당 변수에 값을 넣지말고 env 파일에 넣기기
 
 class Settings(BaseSettings):
-    # 데이터베이스 설정
-    DATABASE_URL: str = "postgresql+asyncpg://user:password@localhost/dbname"
-    
-    # Redis 설정
-    REDIS_URL: str = "redis://localhost:6379"
+
+    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@db:5432/llm_db"
+    REDIS_URL: str = "redis://cache:6379"
 
     # JWT 보안 설정
     SECRET_KEY: str = "your_super_secret_key"
@@ -21,4 +22,3 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
- """

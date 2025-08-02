@@ -1,4 +1,4 @@
-""" from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, declarative_base
 import aioredis
 from .config import settings
@@ -21,4 +21,3 @@ async def get_db():
 # Redis 연결 의존성 주입
 async def get_redis():
     return redis
- """
