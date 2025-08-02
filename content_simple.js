@@ -56,8 +56,8 @@ document.addEventListener('mouseup', function() {
     }
     
     if (foundJargons.length > 0) {
-      // 신조어가 발견되면 툴팁 표시
-      showJargonTooltip(foundJargons[0]);
+      // 신조어가 발견되면 툴팁 표시 (여러 개일 경우 모두 표시)
+      showJargonTooltip(foundJargons);
     } else {
       // 신조어가 없으면 간단한 알림
       showSimpleNotification('선택된 텍스트: ' + text);
@@ -105,7 +105,7 @@ document.addEventListener('dblclick', function(e) {
 });
 
 // 신조어 툴팁 표시
-function showJargonTooltip(jargon) {
+function showJargonTooltip(jargons) {
   // 기존 툴팁 제거
   var existingTooltip = document.getElementById('jargon-tooltip');
   if (existingTooltip) {
@@ -116,11 +116,17 @@ function showJargonTooltip(jargon) {
   tooltip.id = 'jargon-tooltip';
   tooltip.innerHTML = `
     <div class="tooltip-header">
-      <h4>${jargon.term}</h4>
+      <h4>신조어 목록</h4>
       <button class="close-btn">×</button>
     </div>
     <div class="tooltip-content">
-      <p><strong>의미:</strong> ${jargon.meaning}</p>
+      <ul>
+        ${jargons.map(jargon => `
+          <li>
+            <strong>${jargon.term}</strong>: ${jargon.meaning}
+          </li>
+        `).join('')}
+      </ul>
     </div>
   `;
   
