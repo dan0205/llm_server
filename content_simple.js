@@ -52,6 +52,10 @@ document.addEventListener('mouseup', function() {
           term: jargon,
           meaning: JARGON_DATA[jargon]
         });
+        // 최대 3개까지만 인식
+        if (foundJargons.length >= 3) {
+          break;
+        }
       }
     }
     
@@ -222,6 +226,12 @@ function showJargonTooltip(jargons) {
 
 // 간단한 알림 표시
 function showSimpleNotification(message) {
+  // 기존 알림 제거
+  var existingNotifications = document.querySelectorAll('[style*="position: fixed"][style*="z-index: 10002"]');
+  existingNotifications.forEach(function(notification) {
+    notification.remove();
+  });
+  
   var notification = document.createElement('div');
   notification.textContent = message;
   notification.style.cssText = `
