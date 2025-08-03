@@ -164,13 +164,22 @@
 ---
 
 ### 디렉토리 구조 (일부)
+```plaintext
 app/
-├── main.py  
-├── core/ # 환경 설정 및 DB/Redis 연결  
-├── models/ # SQLAlchemy 모델  
-├── schemas/ # Pydantic 스키마  
-├── services/ # GPT API 연동 모듈  
-└── api/v1/ # 라우터 구성
+├── main.py              # FastAPI 앱 초기 실행
+├── core/                # 환경 설정 및 DB/Redis 연결
+│   ├── config.py
+│   └── database.py
+├── models/              # SQLAlchemy 모델 정의
+│   └── jargon.py
+├── schemas/             # Pydantic 데이터 유효성 검사 스키마
+│   └── jargon_schema.py
+├── services/            # GPT API 연동 비즈니스 로직
+│   └── ai_service.py
+└── api/
+    └── v1/              # API 라우터 구성
+        └── jargon_router.py
+
 
 ---
 
