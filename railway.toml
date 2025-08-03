@@ -1,7 +1,0 @@
-projectId = "baad9f8e-464e-40f7-980b-2f6b665e9fda"
-
-[build]
-nixpacksPlan = { providers = ["python"] }
-
-[start]
-cmd = "python3 app.py"
