@@ -118,3 +118,80 @@
 
 이번 실습을 통해 **자동 배포(CI/CD)**, **프로젝트 연동 및 문제 해결 경험**, **애플리케이션 상태 확인**, 그리고 **로그 기록 및 모니터링**까지 서버 운영에 필수적인 흐름을 처음부터 끝까지 경험할 수 있었습니다.
 
+
+## 4주차  
+### 실습 목표
+
+- FastAPI 기반 신조어 분석 백엔드 서버 구현
+- Redis 캐시 및 PostgreSQL DB 연동 구조 설계 및 구현
+- GPT API 요청 처리 분리 및 프롬프트 기반 결과 가공
+- Chrome 확장에서 전달받은 신조어 요청을 처리하는 API 엔드포인트 설계
+- 단일/다중 신조어 요청 처리 흐름 구현
+- 테스트 스크립트를 통한 엔드포인트 동작 검증
+
+---
+
+### 실습 내용
+
+#### FastAPI 백엔드 구조 설계
+- `main.py`를 중심으로 API 서버 구성
+- `/api/v1/jargon/{word}`, `/jargon/analyze`, `/jargon` 등 RESTful API 라우팅 구현
+- API 버전 관리를 위한 `/api/v1/` 구조 적용
+- CORS 정책 및 헬스 체크 엔드포인트(`/`, `/health`) 추가
+
+#### Redis 및 DB 연동 처리
+- `app/core/database.py` 내에서 Redis, SQLAlchemy 세션 구성
+- 캐시 우선 조회 → 없으면 DB 조회 → 없으면 GPT 분석 흐름 적용
+- Redis 캐시 TTL 설정: 3600초
+- DB 테이블 구조는 담당자 연동 예정 (테스트는 미연결 상태에서 진행)
+
+#### GPT API 연동 서비스 분리
+- `AIService` 클래스를 통해 GPT 요청 및 응답 파싱 로직 모듈화
+- 신조어 리스트 및 컨텍스트 기반 프롬프트 생성
+- GPT 응답에서 의미 및 출처 파싱 후 구조화된 결과 반환
+- 단어 누락, 순서 오류 등 이상 응답에 대한 예외 처리 적용
+
+#### 스키마 및 모델 정의
+- `Pydantic` 기반의 요청/응답 스키마 정의 (`schemas/jargon_schema.py`)
+- SQLAlchemy ORM 모델 정의 (`models/jargon.py`)  
+    - 컬럼: `word`, `explanation`, `source`, `search_count`, `is_user_modified`, `created_at`, 등
+
+#### 테스트 및 검증
+- `test_api.py`를 통해 루트 엔드포인트 및 주요 API 테스트 수행
+- DB 연결 전이므로 분석/조회는 예상된 500 에러 발생
+- DB 연동 완료 시 전체 테스트 통과 예정
+
+---
+
+### 디렉토리 구조 (일부)
+app/
+├── main.py
+├── core/ # 환경 설정 및 DB/Redis 연결
+├── models/ # SQLAlchemy 모델
+├── schemas/ # Pydantic 스키마
+├── services/ # GPT API 연동 모듈
+└── api/v1/ # 라우터 구성
+
+---
+
+### 활용 기술 스택 및 도구
+
+- **FastAPI** (비동기 Python 웹 프레임워크)
+- **Redis** (빠른 캐시 저장소)
+- **PostgreSQL** (관계형 데이터베이스)
+- **OpenAI GPT API** (신조어 분석용)
+- **Pydantic**, **SQLAlchemy**, **uvicorn**, **logging**
+- **Chrome Extension 프론트**와의 통신 전제
+
+---
+
+### 요약
+
+이번 주차에는 백엔드 담당자로서 **FastAPI 기반의 핵심 API 서버 구축**,  
+**GPT 연동 서비스 모듈화**, **Redis 및 DB 연동 구조 구현**,  
+그리고 **신조어 분석 흐름에 대한 전체 백엔드 처리 로직**을 완료했습니다.
+
+전체 서버 구조는 확장성과 유지보수성을 고려한 모듈 방식으로 구성되었으며,  
+추후 DB 및 프론트와 연동 시 전체 기능이 정상 작동할 수 있도록 준비를 마쳤습니다.
+
+
