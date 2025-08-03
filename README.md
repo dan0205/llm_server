@@ -165,11 +165,11 @@
 
 ### 디렉토리 구조 (일부)
 app/
-├── main.py
-├── core/ # 환경 설정 및 DB/Redis 연결
-├── models/ # SQLAlchemy 모델
-├── schemas/ # Pydantic 스키마
-├── services/ # GPT API 연동 모듈
+├── main.py  
+├── core/ # 환경 설정 및 DB/Redis 연결  
+├── models/ # SQLAlchemy 모델  
+├── schemas/ # Pydantic 스키마  
+├── services/ # GPT API 연동 모듈  
 └── api/v1/ # 라우터 구성
 
 ---
