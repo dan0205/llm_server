@@ -96,7 +96,7 @@ async def interpret_with_llm(term: str, context_sentence: Optional[str] = None) 
 4. **예시 제공**: 실제 사용할 수 있는 자연스러운 예시를 제공하세요.
 5. **추가 정보**: 필요시 유사어, 반대어, 사용 팁 등을 제공하세요.
 
-출력 형식:
+반드시 다음 JSON 형식으로 응답해주세요:
 {
     "meaning": "신조어의 의미",
     "example": "사용 예시",
