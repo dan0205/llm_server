@@ -1,160 +1,164 @@
-# 🤖 신조어 해석기 API
+# 신조어 해석 Chrome 확장 프로그램
 
-FastAPI 기반의 한국어 신조어 해석 서비스입니다. OpenAI GPT-4o를 활용하여 문맥을 고려한 정확한 신조어 해석을 제공합니다.
+OpenAI API를 활용하여 한국어 신조어를 실시간으로 해석하고, Redis 캐시와 PostgreSQL 데이터베이스를 통해 빠른 응답을 제공하는 Chrome 확장 프로그램입니다.
 
-## ✨ 주요 기능
+## 🚀 주요 기능
 
-### 🧠 AI 기반 문맥 분석
-- **문맥 인식**: 사용자가 제공한 문장의 문맥을 분석하여 정확한 의미 추출
-- **감정 분석**: 문장의 감정적 톤에 맞는 해석 제공
-- **도메인 인식**: 게임, 소셜미디어, 업무, 학교 등 사용 맥락별 해석
-- **대화 히스토리**: 이전 대화를 고려한 연속적인 문맥 이해
+- **실시간 신조어 해석**: OpenAI GPT 모델을 사용한 정확한 신조어 해석
+- **문맥 기반 분석**: 선택된 텍스트의 주변 문맥을 고려한 해석 제공
+- **스마트 캐싱**: Redis를 통한 빠른 응답과 중복 요청 방지
+- **데이터 영속성**: PostgreSQL을 통한 해석 결과 저장
+- **사용자 친화적 UI**: 직관적인 툴팁 인터페이스
 
-### 🔍 고급 분석 기능
-- **유사어 검색**: 관련된 신조어들 자동 추천
-- **모호성 해결**: 문맥이 모호한 경우 명확화 질문 제공
-- **일괄 분석**: 여러 신조어를 동시에 분석
-- **실시간 캐싱**: Redis를 통한 빠른 응답
+## 🏗️ 아키텍처
 
-## 🚀 빠른 시작
+```
+Chrome Extension (content_simple.js)
+           ↓
+    FastAPI Backend
+           ↓
+    ┌─────────────┐
+    │   Redis     │ ← 캐싱
+    └─────────────┘
+           ↓
+    ┌─────────────┐
+    │ PostgreSQL  │ ← 데이터 저장
+    └─────────────┘
+           ↓
+    ┌─────────────┐
+    │ OpenAI API  │ ← AI 해석
+    └─────────────┘
+```
 
-### 1. 환경 설정
+## 📋 요구사항
+
+- Python 3.8+
+- Node.js 16+
+- PostgreSQL 12+
+- Redis 6+
+- Chrome 브라우저
+
+## 🛠️ 설치 및 설정
+
+### 1. 환경 변수 설정
+
+`.env` 파일을 생성하고 다음 정보를 입력하세요:
+
 ```bash
-# 저장소 클론
-git clone https://github.com/dan0205/llm_server.git
-cd llm_server
+# OpenAI API 설정 (필수)
+OPENAI_API_KEY=sk-your-openai-api-key-here
 
+# 데이터베이스 설정 (필수)
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/llm_db
+
+# Redis 설정 (필수)
+REDIS_URL=redis://localhost:6379
+
+# JWT 보안 설정 (필수)
+SECRET_KEY=your_super_secret_key_change_this_in_production
+```
+
+### 2. 백엔드 실행
+
+```bash
 # 의존성 설치
 pip install -r requirements.txt
-```
 
-### 2. 환경 변수 설정
-`.env` 파일을 생성하고 다음 내용을 추가하세요:
-```env
-OPENAI_API_KEY=your_openai_api_key_here
-DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/llm_db
-REDIS_URL=redis://localhost:6379
-SECRET_KEY=your_secret_key_here
-```
+# 데이터베이스 마이그레이션 (필요시)
+# alembic upgrade head
 
-### 3. 데이터베이스 실행
-```bash
-# PostgreSQL과 Redis 실행
-docker-compose up -d
-```
-
-### 4. 서버 실행
-```bash
-# 개발 서버 실행
+# 서버 실행
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-## 📚 API 사용법
+### 3. Docker Compose 사용 (권장)
 
-### 기본 신조어 해석
 ```bash
-curl -X GET "http://localhost:8000/api/v1/jargons/interpret/대박"
+# 서비스 시작
+docker-compose up -d
+
+# 로그 확인
+docker-compose logs -f
+
+# 서비스 중지
+docker-compose down
 ```
 
-### 문맥 기반 해석
-```bash
-curl -X POST "http://localhost:8000/api/v1/jargons/interpret-contextual" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "term": "대박",
-    "context_sentence": "오늘 시험에서 대박 났어!"
-  }'
+### 4. Chrome 확장 프로그램 설치
+
+1. Chrome에서 `chrome://extensions/` 접속
+2. "개발자 모드" 활성화
+3. "압축해제된 확장 프로그램을 로드합니다" 클릭
+4. `llm_server` 폴더 선택
+
+## 🔧 API 엔드포인트
+
+### 신조어 해석
+```
+GET /api/v1/jargons/interpret/{term}?context={context}
 ```
 
-### 대화 분석
-```bash
-curl -X POST "http://localhost:8000/api/v1/jargons/analyze-conversation" \
-  -H "Content-Type: application/json" \
-  -d '"오늘 친구가 대박이라고 했는데 무슨 뜻이야?"'
+**응답 예시:**
+```json
+{
+  "term": "갑분싸",
+  "meaning": "갑자기 분위기가 싸해진다는 뜻",
+  "example": "회의 중에 갑분싸가 됐어.",
+  "context_analysis": {
+    "detected_emotion": "neutral",
+    "formality_level": "casual",
+    "usage_domain": "general"
+  },
+  "additional_info": {
+    "similar_terms": ["갑작스러운", "분위기 전환"],
+    "usage_tips": "일상 대화에서 자주 사용",
+    "origin": "갑자기 + 분위기 + 싸하다"
+  }
+}
 ```
 
-### 유사한 신조어 찾기
-```bash
-curl -X GET "http://localhost:8000/api/v1/jargons/similar/대박"
-```
+## 🎯 사용법
 
-### 모호한 신조어 명확화
-```bash
-curl -X POST "http://localhost:8000/api/v1/jargons/clarify" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "term": "대박",
-    "context": "이 영화 대박이야"
-  }'
-```
+1. **웹페이지에서 신조어 선택**: 마우스로 드래그하여 신조어 선택
+2. **자동 해석**: 선택된 텍스트가 자동으로 분석됨
+3. **툴팁 확인**: 상세한 해석 결과를 툴팁으로 확인
+4. **캐시 활용**: 동일한 신조어는 즉시 응답
 
-## 🧪 테스트
+## 🔍 캐싱 전략
 
-AI 서비스 기능을 테스트하려면:
-```bash
-python test_ai_service.py
-```
+- **Redis 캐시**: 24시간 TTL로 해석 결과 저장
+- **문맥 기반 키**: 신조어 + 문맥 해시로 고유 캐시 키 생성
+- **계층적 조회**: 캐시 → DB → OpenAI API 순서로 조회
 
-## 🏗️ 프로젝트 구조
+## 🚨 문제 해결
 
-```
-llm_server/
-├── app/
-│   ├── api/v1/           # API 라우터
-│   │   ├── auth_router.py    # 인증 API
-│   │   └── jargon_router.py  # 신조어 API
-│   ├── core/             # 핵심 설정
-│   │   ├── config.py         # 환경 변수
-│   │   ├── database.py       # DB 연결
-│   │   └── security.py       # 보안 설정
-│   ├── models/           # 데이터베이스 모델
-│   ├── schemas/          # Pydantic 스키마
-│   ├── services/         # 비즈니스 로직
-│   │   ├── ai_service.py     # AI 서비스 (핵심)
-│   │   ├── jargon_service.py # 신조어 처리
-│   │   └── auth_service.py   # 인증 처리
-│   └── main.py          # 애플리케이션 진입점
-├── docker-compose.yml   # 컨테이너 설정
-├── requirements.txt     # Python 의존성
-└── test_ai_service.py  # AI 서비스 테스트
-```
+### 백엔드 연결 오류
+- 서버가 실행 중인지 확인
+- `.env` 파일의 설정값 확인
+- 방화벽 설정 확인
 
-## 🧠 AI 서비스 상세 설명
+### OpenAI API 오류
+- API 키 유효성 확인
+- API 사용량 한도 확인
+- 네트워크 연결 상태 확인
 
-### ContextAnalyzer 클래스
-- **감정 분석**: 키워드 기반 감정 감지 (긍정/부정/놀람)
-- **격식 분석**: 문장의 격식 수준 판단
-- **도메인 분석**: 게임, 소셜미디어, 업무, 학교 등 사용 맥락 분류
+### 데이터베이스 오류
+- PostgreSQL 서비스 상태 확인
+- 데이터베이스 연결 문자열 확인
+- 테이블 스키마 확인
 
-### ConversationManager 클래스
-- **대화 히스토리 관리**: 최근 10개 메시지 유지
-- **문맥 연속성**: 이전 대화를 고려한 해석
-- **메모리 효율성**: 자동 히스토리 정리
+## 📊 성능 최적화
 
-### 주요 AI 함수들
-1. **`interpret_with_llm()`**: 핵심 해석 함수
-2. **`analyze_conversation_context()`**: 대화 문맥 분석
-3. **`get_similar_terms()`**: 유사어 검색
-4. **`clarify_ambiguous_term()`**: 모호성 해결
+- **비동기 처리**: FastAPI의 비동기 특성 활용
+- **연결 풀링**: 데이터베이스 및 Redis 연결 풀 사용
+- **배치 처리**: 여러 신조어 동시 해석 지원
 
-## 🔧 설정 옵션
+## 🔒 보안 고려사항
 
-### AI 모델 설정
-- **모델**: GPT-4o (최신 모델 사용)
-- **Temperature**: 0.7 (창의성과 일관성의 균형)
-- **Max Tokens**: 1000 (충분한 응답 길이)
-
-### 캐싱 설정
-- **Redis TTL**: 1시간 (3600초)
-- **캐시 키**: 신조어 + 문맥 해시 조합
-- **문맥별 캐싱**: 같은 신조어라도 문맥이 다르면 별도 캐싱
-
-## 🚀 성능 최적화
-
-1. **Redis 캐싱**: 자주 요청되는 신조어는 캐시에서 즉시 응답
-2. **비동기 처리**: 모든 AI 호출과 DB 작업이 비동기로 처리
-3. **배치 처리**: 여러 신조어를 동시에 분석 가능
-4. **문맥별 캐싱**: 문맥이 다른 경우 별도 캐싱으로 정확성 향상
+- API 키는 환경 변수로 관리
+- JWT 토큰 기반 인증
+- 입력값 검증 및 sanitization
+- CORS 설정으로 허용된 도메인만 접근
 
 ## 🤝 기여하기
 
@@ -166,8 +170,12 @@ llm_server/
 
 ## 📄 라이선스
 
-이 프로젝트는 MIT 라이선스 하에 배포됩니다.
+이 프로젝트는 MIT 라이선스 하에 배포됩니다. 자세한 내용은 `LICENSE` 파일을 참조하세요.
 
-## 📞 문의
+## 📞 지원
 
-프로젝트에 대한 문의사항이 있으시면 이슈를 생성해주세요. 
+문제가 발생하거나 질문이 있으시면 이슈를 생성해 주세요.
+
+---
+
+**참고**: 이 프로젝트는 교육 및 연구 목적으로 제작되었습니다. 상업적 사용 시 OpenAI API 사용 정책을 준수해 주세요. 

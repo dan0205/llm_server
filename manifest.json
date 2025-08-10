@@ -1,19 +1,27 @@
 {
   "manifest_version": 3,
-  "name": "신조어 해석기",
-  "version": "1.0",
-  "description": "웹페이지에서 신조어를 쉽게 해석할 수 있는 확장 프로그램",
-  "permissions": [
-    "activeTab"
+  "name": "Jargon Helper",
+  "version": "0.0.1",
+
+  "permissions": ["scripting", "activeTab", "storage"],
+  "host_permissions": [
+    "http://127.0.0.1:8000/*",
+    "http://localhost:8000/*"
   ],
-  "action": {
-    "default_popup": "popup.html",
-    "default_title": "신조어 해석기"
+
+  "background": {
+    "service_worker": "background.js"
   },
+
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["content_simple.js"]
+      "js": ["content_simple.js"],
+      "run_at": "document_idle"
     }
-  ]
+  ],
+
+  "action": {
+    "default_popup": "popup.html"
+  }
 } 
