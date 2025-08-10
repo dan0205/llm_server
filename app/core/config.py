@@ -1,24 +1,24 @@
 from pydantic_settings import BaseSettings
-
-# env 파일에 이런식으로 값을 넣어야 하는 걸 알려주는 설계도
-# 해당 변수에 값을 넣지말고 env 파일에 넣기기
+from typing import Optional
+import os
 
 class Settings(BaseSettings):
-
-    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@db:5432/llm_db"
-    REDIS_URL: str = "redis://cache:6379"
-
-    # JWT 보안 설정
-    SECRET_KEY: str = "your_super_secret_key"
-    ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7 # 7일
-
-    # 외부 API 키
-    OPENAI_API_KEY: str = "your_openai_api_key"
-    GOOGLE_CLIENT_ID: str = "your_google_client_id.apps.googleusercontent.com"
-
+    # 데이터베이스 설정
+    DATABASE_URL: str = "postgresql://user:password@localhost/llm_db"
+    
+    # Redis 설정
+    REDIS_HOST: str = "localhost"
+    REDIS_PORT: int = 6379
+    REDIS_DB: int = 0
+    
+    # GPT API 설정
+    OPENAI_API_KEY: Optional[str] = None
+    
+    # 애플리케이션 설정
+    APP_NAME: str = "LLM 신조어 분석 API"
+    DEBUG: bool = True
+    
     class Config:
         env_file = ".env"
 
-settings = Settings()
-
+settings = Settings() 
