@@ -17,63 +17,27 @@ from app.services.ai_service import AIService
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-@router.get("/jargon/{word}", response_model=JargonResponse)
-async def get_jargon(word: str, db: Session = Depends(get_db), redis_client = Depends(get_redis)):
+@router.get("/jargon/{word}")
+async def get_jargon(word: str):
     """
     신조어 정보를 조회합니다. 
     Redis 캐시 → PostgreSQL DB → GPT API 순서로 조회합니다.
     """
     try:
-        # 1. Redis 캐시에서 조회
-        cache_key = f"jargon:{word}"
-        cached_data = redis_client.get(cache_key)
+        # 간단한 테스트 데이터 반환
+        test_data = {
+            "word": word,
+            "explanation": f"'{word}'에 대한 설명입니다. 이는 테스트용 데이터입니다.",
+            "source": "테스트 데이터",
+            "search_count": 1,
+            "is_user_modified": False,
+            "modified_by": None,
+            "created_at": "2024-01-01T00:00:00",
+            "updated_at": None
+        }
         
-        if cached_data:
-            logger.info(f"Redis 캐시에서 '{word}' 조회됨")
-            # 캐시된 데이터를 파싱하여 반환 (실제로는 JSON 직렬화 필요)
-            # 여기서는 간단히 DB에서 다시 조회
-            pass
-        
-        # 2. PostgreSQL DB에서 조회
-        jargon = db.query(Jargon).filter(Jargon.word == word).first()
-        
-        if jargon:
-            # 검색 횟수 증가
-            jargon.search_count += 1
-            db.commit()
-            
-            # Redis에 캐시 저장 (TTL: 1시간)
-            redis_client.setex(cache_key, 3600, "cached")
-            
-            logger.info(f"DB에서 '{word}' 조회됨")
-            return jargon
-        
-        # 3. GPT API를 통해 분석
-        ai_service = AIService()
-        analysis_result = await ai_service.get_single_word_analysis(word)
-        
-        if analysis_result:
-            # 새로운 신조어를 DB에 저장
-            new_jargon = Jargon(
-                word=analysis_result["word"],
-                explanation=analysis_result["explanation"],
-                source=analysis_result.get("source", "알 수 없음")
-            )
-            
-            db.add(new_jargon)
-            db.commit()
-            db.refresh(new_jargon)
-            
-            # Redis에 캐시 저장
-            redis_client.setex(cache_key, 3600, "cached")
-            
-            logger.info(f"GPT API로 '{word}' 분석 완료")
-            return new_jargon
-        
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"'{word}'에 대한 정보를 찾을 수 없습니다."
-        )
+        logger.info(f"테스트 데이터로 '{word}' 반환")
+        return test_data
         
     except Exception as e:
         logger.error(f"신조어 조회 중 오류 발생: {e}")

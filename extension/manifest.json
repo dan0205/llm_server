@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "LLM 신조어 분석기",
+  "version": "1.0",
+  "description": "웹페이지의 신조어를 분석하고 설명을 제공하는 Chrome Extension",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "tabs"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content_simple.js"]
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "LLM 신조어 분석기"
+  }
+} 
