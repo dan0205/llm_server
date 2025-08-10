@@ -18,26 +18,69 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 @router.get("/jargon/{word}")
-async def get_jargon(word: str):
+async def get_jargon(
+    word: str,
+    db: Session = Depends(get_db),
+    redis_client = Depends(get_redis)
+):
     """
     신조어 정보를 조회합니다. 
     Redis 캐시 → PostgreSQL DB → GPT API 순서로 조회합니다.
     """
     try:
-        # 간단한 테스트 데이터 반환
-        test_data = {
-            "word": word,
-            "explanation": f"'{word}'에 대한 설명입니다. 이는 테스트용 데이터입니다.",
-            "source": "테스트 데이터",
-            "search_count": 1,
-            "is_user_modified": False,
-            "modified_by": None,
-            "created_at": "2024-01-01T00:00:00",
-            "updated_at": None
-        }
+        # Redis 캐시 확인
+        cache_key = f"jargon:{word}"
+        cached = redis_client.get(cache_key)
+        if cached:
+            logger.info(f"Redis 캐시에서 '{word}' 조회됨")
         
-        logger.info(f"테스트 데이터로 '{word}' 반환")
-        return test_data
+        # DB에서 신조어 조회
+        jargon = db.query(Jargon).filter(Jargon.word == word).first()
+        
+        if jargon:
+            # 검색 횟수 증가
+            jargon.search_count += 1
+            db.commit()
+            
+            # Redis에 캐시 저장
+            redis_client.setex(cache_key, 3600, "cached")
+            
+            logger.info(f"DB에서 '{word}' 조회됨")
+            return jargon
+        else:
+            # DB에 없으면 GPT API로 분석 시도
+            try:
+                ai_service = AIService()
+                analysis = await ai_service.get_single_word_analysis(word)
+                
+                # 분석 결과를 DB에 저장
+                new_jargon = Jargon(
+                    word=word,
+                    explanation=analysis["explanation"],
+                    source=analysis.get("source", "AI 분석")
+                )
+                db.add(new_jargon)
+                db.commit()
+                
+                # Redis에 캐시 저장
+                redis_client.setex(cache_key, 3600, "cached")
+                
+                logger.info(f"GPT API로 '{word}' 분석 완료")
+                return new_jargon
+                
+            except Exception as ai_error:
+                logger.warning(f"GPT API 분석 실패: {ai_error}")
+                # GPT API 실패 시에도 404가 아닌 기본 메시지 반환
+                return {
+                    "word": word,
+                    "explanation": f"'{word}'에 대한 정보를 찾을 수 없습니다.",
+                    "source": "정보 없음",
+                    "search_count": 0,
+                    "is_user_modified": False,
+                    "modified_by": None,
+                    "created_at": None,
+                    "updated_at": None
+                }
         
     except Exception as e:
         logger.error(f"신조어 조회 중 오류 발생: {e}")

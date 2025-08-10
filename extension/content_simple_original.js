@@ -1,8 +1,18 @@
-// 백엔드 API 연동 버전
+// 매우 간단한 테스트 버전
 console.log('확장 프로그램 로드됨');
 
-// API 서버 URL
-const API_BASE_URL = 'http://localhost:8001/api';
+// 신조어 데이터
+const JARGON_DATA = {
+  "갑분싸": "갑자기 분위기가 싸해진다는 뜻",
+  "인싸": "인사이더의 줄임말로, 특정 그룹에 속한 사람",
+  "아싸": "아웃사이더의 줄임말로, 특정 그룹에 속하지 않은 사람",
+  "대박": "엄청나게 좋은 일이 일어났을 때 사용하는 표현",
+  "헐": "놀라거나 충격받았을 때 사용하는 감탄사",
+  "ㅋㅋ": "웃음을 표현하는 인터넷 용어",
+  "ㅎㅎ": "웃음을 표현하는 인터넷 용어",
+  "ㅇㅇ": "응응의 줄임말로 동의를 표현",
+  "ㄴㄴ": "노노의 줄임말로 부정을 표현"
+};
 
 // 중복 방지 변수
 let lastSelectedText = '';
@@ -34,8 +44,28 @@ document.addEventListener('mouseup', function() {
     lastProcessTime = currentTime;
     tooltipShown = true;
     
-    // 백엔드 API 호출
-    checkJargonFromAPI(text);
+    // 신조어 검색
+    var foundJargons = [];
+    for (var jargon in JARGON_DATA) {
+      if (text.includes(jargon)) {
+        foundJargons.push({
+          term: jargon,
+          meaning: JARGON_DATA[jargon]
+        });
+        // 최대 3개까지만 인식
+        if (foundJargons.length >= 3) {
+          break;
+        }
+      }
+    }
+    
+    if (foundJargons.length > 0) {
+      // 신조어가 발견되면 툴팁 표시 (여러 개일 경우 모두 표시)
+      showJargonTooltip(foundJargons);
+    } else {
+      // 신조어가 없으면 간단한 알림
+      showSimpleNotification('선택된 텍스트: ' + text);
+    }
   } else {
     // 텍스트 선택이 해제되면 상태 초기화
     setTimeout(function() {
@@ -47,106 +77,6 @@ document.addEventListener('mouseup', function() {
     }, 100);
   }
 });
-
-// 백엔드 API에서 신조어 확인
-async function checkJargonFromAPI(text) {
-  try {
-    console.log('API 호출 시작:', text);
-    
-    // 로딩 툴팁 표시
-    showLoadingTooltip();
-    
-    // API 호출
-    const response = await fetch(`${API_BASE_URL}/v1/jargon/${encodeURIComponent(text)}`);
-    console.log('API 응답 상태:', response.status);
-    
-    if (response.ok) {
-      const data = await response.json();
-      console.log('API 응답 데이터:', data);
-      console.log('showJargonTooltip 호출 시작');
-      
-      // 신조어 정보 툴팁 표시
-      const jargonData = [{
-        term: data.word,
-        meaning: data.explanation,
-        source: data.source,
-        searchCount: data.search_count
-      }];
-      console.log('전달할 데이터:', jargonData);
-      showJargonTooltip(jargonData);
-      console.log('showJargonTooltip 호출 완료');
-    } else {
-      // 신조어가 없으면 간단한 알림
-      showSimpleNotification('선택된 텍스트: ' + text);
-    }
-  } catch (error) {
-    console.error('API 호출 실패:', error);
-    // 오류 시 간단한 알림
-    showSimpleNotification('선택된 텍스트: ' + text);
-  }
-}
-
-// 로딩 툴팁 표시
-function showLoadingTooltip() {
-  var tooltip = document.createElement('div');
-  tooltip.id = 'jargon-tooltip';
-  tooltip.innerHTML = `
-    <div class="tooltip-header">
-      <h4>분석 중...</h4>
-    </div>
-    <div class="tooltip-content">
-      <p>신조어 정보를 가져오는 중입니다...</p>
-    </div>
-  `;
-  
-  // 마우스 위치 근처에 표시
-  var mouseX = event.clientX;
-  var mouseY = event.clientY;
-  
-  tooltip.style.cssText = `
-    position: fixed;
-    top: ${mouseY + 10}px;
-    left: ${mouseX + 10}px;
-    background: white;
-    border: 1px solid #ccc;
-    border-radius: 8px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-    z-index: 10001;
-    max-width: 300px;
-    font-family: Arial, sans-serif;
-    font-size: 13px;
-    animation: tooltipFadeIn 0.2s ease;
-  `;
-  
-  // 헤더 스타일
-  var header = tooltip.querySelector('.tooltip-header');
-  header.style.cssText = `
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 8px 12px;
-    border-bottom: 1px solid #eee;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border-radius: 8px 8px 0 0;
-  `;
-  
-  // 내용 스타일
-  var content = tooltip.querySelector('.tooltip-content');
-  content.style.cssText = `
-    padding: 12px;
-    line-height: 1.4;
-  `;
-  
-  document.body.appendChild(tooltip);
-  
-  // 3초 후 자동 제거
-  setTimeout(function() {
-    if (tooltip.parentNode) {
-      tooltip.remove();
-    }
-  }, 3000);
-}
 
 // 다른 곳 클릭 시 툴팁 닫기
 document.addEventListener('click', function(e) {
@@ -190,7 +120,7 @@ function showJargonTooltip(jargons) {
   tooltip.id = 'jargon-tooltip';
   tooltip.innerHTML = `
     <div class="tooltip-header">
-      <h4>신조어 정보</h4>
+      <h4>신조어 목록</h4>
       <button class="close-btn">×</button>
     </div>
     <div class="tooltip-content">
@@ -198,24 +128,15 @@ function showJargonTooltip(jargons) {
         ${jargons.map(jargon => `
           <li>
             <strong>${jargon.term}</strong>: ${jargon.meaning}
-            <br><small>출처: ${jargon.source || '알 수 없음'}</small>
-            <br><small>검색 횟수: ${jargon.searchCount || 0}</small>
           </li>
         `).join('')}
       </ul>
     </div>
   `;
   
-  // 마우스 위치 근처에 표시 (event가 없을 때는 현재 마우스 위치 사용)
-  var mouseX, mouseY;
-  if (typeof event !== 'undefined' && event.clientX) {
-    mouseX = event.clientX;
-    mouseY = event.clientY;
-  } else {
-    // 현재 마우스 위치를 가져오거나 기본값 사용
-    mouseX = window.innerWidth / 2;
-    mouseY = window.innerHeight / 2;
-  }
+  // 마우스 위치 근처에 표시
+  var mouseX = event.clientX;
+  var mouseY = event.clientY;
   
   tooltip.style.cssText = `
     position: fixed;
