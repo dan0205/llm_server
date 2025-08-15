@@ -2,7 +2,7 @@
 
 OpenAI API를 활용하여 한국어 신조어를 실시간으로 해석하고, Redis 캐시와 PostgreSQL 데이터베이스를 통해 빠른 응답을 제공하는 Chrome 확장 프로그램입니다.
 
-## 🚀 주요 기능
+## 주요 기능
 
 - **실시간 신조어 해석**: OpenAI GPT 모델을 사용한 정확한 신조어 해석
 - **문맥 기반 분석**: 선택된 텍스트의 주변 문맥을 고려한 해석 제공
@@ -10,7 +10,7 @@ OpenAI API를 활용하여 한국어 신조어를 실시간으로 해석하고, 
 - **데이터 영속성**: PostgreSQL을 통한 해석 결과 저장
 - **사용자 친화적 UI**: 직관적인 툴팁 인터페이스
 
-## 🏗️ 아키텍처
+## 아키텍처
 
 ```
 Chrome Extension (content_simple.js)
@@ -30,7 +30,7 @@ Chrome Extension (content_simple.js)
     └─────────────┘
 ```
 
-## 📋 요구사항
+## 요구사항
 
 - Python 3.8+
 - Node.js 16+
@@ -38,7 +38,7 @@ Chrome Extension (content_simple.js)
 - Redis 6+
 - Chrome 브라우저
 
-## 🛠️ 설치 및 설정
+## 설치 및 설정
 
 ### 1. 환경 변수 설정
 
@@ -132,7 +132,7 @@ docker-compose down
 - **`webNavigation`**: SPA 내비게이션과 페이지 전환을 확실하게 감지
 - **`web_accessible_resources`**: assets 폴더의 slang_30.json 파일에 접근하여 로컬 사전 로드
 
-## 🔧 API 엔드포인트
+## API 엔드포인트
 
 ### 신조어 해석
 ```
@@ -163,7 +163,7 @@ GET /__debug/cache/{term}       # 특정 term 캐시 내용
 DELETE /__debug/cache/{term}    # 특정 term 캐시 삭제
 ```
 
-## 🧠 동작 원리
+## 동작 원리
 
 ### 1. 전체 시스템 아키텍처
 ```
@@ -223,7 +223,7 @@ curl "http://localhost:8000/api/v1/jargons/interpret/테스트?refresh=true"
 curl "http://localhost:8000/__debug/cache/테스트"
 ```
 
-## 🔍 캐싱 전략
+## 캐싱 전략
 
 ### 계층적 캐시 시스템
 - **1단계: 로컬 캐시** (Chrome Storage)
@@ -252,7 +252,7 @@ curl "http://localhost:8000/__debug/cache/테스트"
 - **해시 기반**: 빠른 검색을 위한 효율적인 키 구조
 - **자동 만료**: TTL로 메모리 효율성 확보
 
-## 🚨 문제 해결
+## 문제 해결
 
 ### 백엔드 연결 오류
 - 서버가 실행 중인지 확인
@@ -269,7 +269,7 @@ curl "http://localhost:8000/__debug/cache/테스트"
 - 데이터베이스 연결 문자열 확인
 - 테이블 스키마 확인
 
-## 📊 성능 최적화
+## 성능 최적화
 
 ### 시스템 레벨 최적화
 - **비동기 처리**: FastAPI의 비동기 특성 활용
@@ -291,26 +291,18 @@ curl "http://localhost:8000/__debug/cache/테스트"
 - **응답 시간**: 캐시 히트 시 0ms, API 호출 시 2-5초
 - **동시 사용자**: 탭별 독립적 캐시로 확장성 확보
 
-## 🔒 보안 고려사항
+## 보안 고려사항
 
 - API 키는 환경 변수로 관리
 - JWT 토큰 기반 인증
 - 입력값 검증 및 sanitization
 - CORS 설정으로 허용된 도메인만 접근
 
-## 🤝 기여하기
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## 📄 라이선스
+## 라이선스
 
 이 프로젝트는 MIT 라이선스 하에 배포됩니다. 자세한 내용은 `LICENSE` 파일을 참조하세요.
 
-## 📞 지원
+## 지원
 
 문제가 발생하거나 질문이 있으시면 이슈를 생성해 주세요.
 
