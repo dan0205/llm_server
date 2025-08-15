@@ -14,6 +14,10 @@ def _cache_key(term: str, context_sentence: Optional[str]) -> str:
     ctx_hash = hashlib.md5(ctx.encode("utf-8")).hexdigest()[:8] if ctx else "noctx"
     return f"{CACHE_NS}:{term}:{ctx_hash}"
 
+# 외부 디버그에서 쓰기 좋게 보조 함수 노출
+def cache_key_for(term: str, context_sentence: Optional[str]) -> str:
+    return _cache_key(term, context_sentence)
+
 def _is_fallback_line(meaning_line: str) -> bool:
     if not isinstance(meaning_line, str):
         return True
@@ -33,35 +37,39 @@ async def _safe_set(rds, key, val, ex):
     except Exception as e:
         print(f"[CACHE OFF][SET] {key} -> {e}")
 
-async def get_interpretation(term: str, db: AsyncSession, rds: redis.Redis, context_sentence: Optional[str]) -> Dict[str, Any]:
+async def get_interpretation(
+    term: str,
+    db: AsyncSession,
+    rds: redis.Redis,
+    context_sentence: Optional[str],
+    *,
+    nocache: bool = False,
+    refresh: bool = False,
+) -> Dict[str, Any]:
     key = _cache_key(term, context_sentence)
 
-    # ① 읽기 (과거 v1 구조도 대비)
-    cached = await _safe_get(rds, key)
-    if cached:
-        try:
-            obj = json.loads(cached)
-        except Exception:
-            obj = {"meaning_line": str(cached)}
-        line = obj.get("meaning_line", obj.get("meaning", ""))  # v1 호환
-        print(f"[CACHE HIT] {key}")
-        return {"meaning_line": line}
+    if not nocache and not refresh:
+        cached = await _safe_get(rds, key)
+        if cached:
+            try:
+                obj = json.loads(cached)
+            except Exception:
+                obj = {"meaning_line": str(cached)}
+            line = obj.get("meaning_line", obj.get("meaning", ""))
+            if _is_fallback_line(line):
+                print(f"[CACHE IGNORE: fallback-hit] {key}")
+            else:
+                print(f"[CACHE HIT] {key}")
+                return {"meaning_line": line}
 
-    print(f"[CACHE MISS] {key} → LLM")
+    print(f"[CACHE MISS{' (nocache)' if nocache else ''}{' (refresh)' if refresh else ''}] {key} → LLM")
     data = await interpret_with_llm(term, context_sentence)
-
-    # ② 데이터 정규화
-    if isinstance(data, dict):
-        line = data.get("meaning_line") or data.get("meaning") or ""
-    else:
-        line = str(data or "")
-
-    # ③ 실패면 캐시하지 않음 (또는 매우 짧게)
+    line = data.get("meaning_line") if isinstance(data, dict) else str(data or "")
     if _is_fallback_line(line):
         print(f"[CACHE SKIP: fallback] {key}")
         return {"meaning_line": line}
 
-    # ④ 성공만 캐시
+    # refresh=true면 성공값으로 덮어씀
     await _safe_set(rds, key, json.dumps({"meaning_line": line}, ensure_ascii=False), ex=CACHE_TTL_SEC)
     print(f"[CACHE SET] {key}")
     return {"meaning_line": line}

@@ -3,7 +3,7 @@
   "name": "Jargon Helper",
   "version": "0.0.1",
 
-  "permissions": ["scripting", "activeTab", "storage"],
+  "permissions": ["scripting", "activeTab", "storage", "webNavigation"],
   "host_permissions": [
     "http://127.0.0.1:8000/*",
     "http://localhost:8000/*"
@@ -23,5 +23,12 @@
 
   "action": {
     "default_popup": "popup.html"
-  }
+  },
+  
+  "web_accessible_resources": [
+    {
+      "resources": ["assets/*"],
+      "matches": ["<all_urls>"]
+    }
+  ]
 } 

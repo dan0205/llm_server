@@ -19,6 +19,8 @@ async def options_interpret(term: str):
 async def interpret_jargon(
     term: str,
     context: Optional[str] = None,
+    nocache: Optional[bool] = False,
+    refresh: Optional[bool] = False,
     db: AsyncSession = Depends(get_db),
     rds: redis.Redis = Depends(get_redis),
 ):
@@ -26,7 +28,7 @@ async def interpret_jargon(
     if not term:
         raise HTTPException(status_code=400, detail="term is required")
 
-    data = await get_interpretation(term, db, rds, context)
+    data = await get_interpretation(term, db, rds, context, nocache=nocache, refresh=refresh)
     # 항상 {"meaning_line": "..."} 형태로 보장
     line = data.get("meaning_line", "") if isinstance(data, dict) else str(data)
     return JSONResponse(content={"meaning_line": line}, status_code=200)

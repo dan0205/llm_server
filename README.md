@@ -91,6 +91,47 @@ docker-compose down
 3. "압축해제된 확장 프로그램을 로드합니다" 클릭
 4. `llm_server` 폴더 선택
 
+#### **Manifest 설정 상세**
+
+**필수 권한:**
+```json
+{
+  "permissions": [
+    "scripting",      // 동적 스크립트 주입
+    "activeTab",      // 현재 활성 탭 접근
+    "storage"         // 로컬 캐시 및 사전 저장
+  ]
+}
+```
+
+**선택 권한:**
+```json
+{
+  "optional_permissions": [
+    "webNavigation"   // 페이지 내비게이션 감지 (권장)
+  ]
+}
+```
+
+**웹 접근 리소스:**
+```json
+{
+  "web_accessible_resources": [
+    {
+      "resources": ["assets/*"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
+```
+
+**권한 설명:**
+- **`scripting`**: 동적으로 스크립트를 주입하여 페이지 컨텍스트에서 history API 후킹
+- **`activeTab`**: 현재 활성 탭에서만 스크립트 실행 (보안 강화)
+- **`storage`**: 로컬 캐시와 30개 신조어 사전을 Chrome Storage에 저장
+- **`webNavigation`**: SPA 내비게이션과 페이지 전환을 확실하게 감지
+- **`web_accessible_resources`**: assets 폴더의 slang_30.json 파일에 접근하여 로컬 사전 로드
+
 ## 🔧 API 엔드포인트
 
 ### 신조어 해석
@@ -98,37 +139,118 @@ docker-compose down
 GET /api/v1/jargons/interpret/{term}?context={context}
 ```
 
+**파라미터:**
+- `term` (필수): 해석할 신조어
+- `context` (선택): 문맥 문장 (최대 220자)
+- `nocache` (선택): 캐시 무시하고 LLM 직접 호출
+- `refresh` (선택): 캐시 강제 갱신
+
 **응답 예시:**
 ```json
 {
-  "term": "갑분싸",
-  "meaning": "갑자기 분위기가 싸해진다는 뜻",
-  "example": "회의 중에 갑분싸가 됐어.",
-  "context_analysis": {
-    "detected_emotion": "neutral",
-    "formality_level": "casual",
-    "usage_domain": "general"
-  },
-  "additional_info": {
-    "similar_terms": ["갑작스러운", "분위기 전환"],
-    "usage_tips": "일상 대화에서 자주 사용",
-    "origin": "갑자기 + 분위기 + 싸하다"
-  }
+  "meaning_line": "알고리즘 탔다: 알고리즘 추천에 노출되어 조회수가 급증함."
 }
 ```
 
+### 디버그 엔드포인트
+```
+GET /__health                    # 서버 상태 확인
+GET /__debug/redis              # Redis 연결 상태
+GET /__debug/openai             # OpenAI API 키 상태
+GET /__debug/llm                # LLM 테스트 호출
+GET /__debug/cache              # 캐시 시스템 상태
+GET /__debug/cache/{term}       # 특정 term 캐시 내용
+DELETE /__debug/cache/{term}    # 특정 term 캐시 삭제
+```
+
+## 🧠 동작 원리
+
+### 1. 전체 시스템 아키텍처
+```
+사용자 드래그 → Content Script → Background Script → FastAPI → OpenAI → 응답
+                    ↓              ↓              ↓
+                로컬 캐시    탭 간 동기화    Redis 캐시
+```
+
+### 2. 우선순위 기반 해석 시스템
+```
+1순위: 탭 간 공유 캐시 (가장 빠름, 0ms)
+2순위: 로컬 사전 30개 (오프라인 지원)
+3순위: 네트워크 API (온라인에서만)
+```
+
+### 3. 문맥 기반 해석 과정
+1. **텍스트 선택**: 사용자가 웹페이지에서 신조어 드래그
+2. **문맥 추출**: 선택된 단어 주변 220자 문장 자동 추출
+3. **캐시 확인**: 로컬/원격 캐시에서 기존 해석 검색
+4. **LLM 호출**: 캐시 미스 시 OpenAI GPT-4o-mini 호출
+5. **결과 저장**: 성공한 해석을 캐시에 저장 (7일 TTL)
+6. **탭 동기화**: 모든 탭에 새로운 캐시 데이터 전파
+
+### 4. 오프라인 지원
+- **로컬 사전**: 30개 핵심 신조어 번들
+- **오프라인 감지**: `navigator.onLine` API 사용
+- **폴백 메시지**: 네트워크 없이도 기본 기능 제공
+
+### 5. 캐시 전략
+- **계층적 캐시**: 로컬 → Redis → LLM
+- **문맥별 키**: `term + context_hash` 조합으로 고유 식별
+- **TTL 관리**: 7일 자동 만료로 최신성 보장
+- **실패 방지**: fallback 응답은 캐시에 저장하지 않음
+
 ## 🎯 사용법
 
+### 기본 사용법
 1. **웹페이지에서 신조어 선택**: 마우스로 드래그하여 신조어 선택
 2. **자동 해석**: 선택된 텍스트가 자동으로 분석됨
-3. **툴팁 확인**: 상세한 해석 결과를 툴팁으로 확인
+3. **툴팁 확인**: 해석 결과를 툴팁으로 확인
 4. **캐시 활용**: 동일한 신조어는 즉시 응답
+
+### 고급 기능
+- **문맥 고려**: 선택된 단어 주변 문장을 자동으로 포함하여 해석
+- **탭 간 동기화**: 한 탭에서 해석한 결과를 다른 탭에서도 즉시 사용
+- **오프라인 지원**: 네트워크 없이도 기본 신조어 해석 가능
+
+### 디버그 모드
+```bash
+# 캐시 무시하고 새로 해석
+curl "http://localhost:8000/api/v1/jargons/interpret/테스트?nocache=true"
+
+# 캐시 강제 갱신
+curl "http://localhost:8000/api/v1/jargons/interpret/테스트?refresh=true"
+
+# 캐시 상태 확인
+curl "http://localhost:8000/__debug/cache/테스트"
+```
 
 ## 🔍 캐싱 전략
 
-- **Redis 캐시**: 24시간 TTL로 해석 결과 저장
-- **문맥 기반 키**: 신조어 + 문맥 해시로 고유 캐시 키 생성
-- **계층적 조회**: 캐시 → DB → OpenAI API 순서로 조회
+### 계층적 캐시 시스템
+- **1단계: 로컬 캐시** (Chrome Storage)
+  - 탭 간 공유, 7일 TTL
+  - 가장 빠른 응답 (0ms)
+  - 오프라인에서도 사용 가능
+
+- **2단계: Redis 캐시** (서버)
+  - 서버 재시작 후에도 유지
+  - 7일 TTL로 최신성 보장
+  - fallback 응답은 저장하지 않음
+
+- **3단계: LLM API** (OpenAI)
+  - 캐시 미스 시에만 호출
+  - 문맥 기반 정확한 해석
+  - 성공한 결과만 캐시에 저장
+
+### 캐시 키 생성
+```
+키 형식: jargon:v2:{term}:{context_hash}
+예시: jargon:v2:알고리즘탔다:abc12345
+```
+
+### 성능 최적화
+- **문맥별 분리**: 같은 단어라도 문맥이 다르면 별도 캐시
+- **해시 기반**: 빠른 검색을 위한 효율적인 키 구조
+- **자동 만료**: TTL로 메모리 효율성 확보
 
 ## 🚨 문제 해결
 
@@ -149,9 +271,25 @@ GET /api/v1/jargons/interpret/{term}?context={context}
 
 ## 📊 성능 최적화
 
+### 시스템 레벨 최적화
 - **비동기 처리**: FastAPI의 비동기 특성 활용
 - **연결 풀링**: 데이터베이스 및 Redis 연결 풀 사용
 - **배치 처리**: 여러 신조어 동시 해석 지원
+
+### 캐시 레벨 최적화
+- **로컬 우선**: Chrome Storage를 통한 즉시 응답
+- **탭 동기화**: 한 번 해석하면 모든 탭에서 재사용
+- **문맥 인덱싱**: 빠른 해시 기반 검색
+
+### LLM 레벨 최적화
+- **프롬프트 최적화**: 간결하고 명확한 시스템 프롬프트
+- **재시도 로직**: 네트워크 오류 시 자동 재시도
+- **타임아웃 관리**: 20초 제한으로 응답성 보장
+
+### 성능 지표
+- **캐시 히트율**: 90%+ (반복 사용 시)
+- **응답 시간**: 캐시 히트 시 0ms, API 호출 시 2-5초
+- **동시 사용자**: 탭별 독립적 캐시로 확장성 확보
 
 ## 🔒 보안 고려사항
 

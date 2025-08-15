@@ -17,12 +17,13 @@ def _get_client():
     
     return AsyncOpenAI(api_key=api_key)
 
-SYSTEM_PROMPT = """다음 단어의 의미를 한 문장으로만 설명하세요.  
-예문, 부연 설명, 분석은 포함하지 마세요.  
-출력은 JSON 형식으로만 반환하세요.
-
-출력 형식:
-{"meaning_line": "<단어>: <한 문장 의미>"}"""
+SYSTEM_PROMPT = """당신은 한국어 신조어/표현을 문맥에 맞게 '한 문장'으로만 설명합니다.
+규칙:
+- 출력은 JSON 한 줄만: {"meaning_line":"<단어>: <한 문장 의미>"}
+- 예문, 해설, 추가텍스트 금지 (설명 1문장만)
+- 문맥(context)이 주어지면 그 문맥에 '가장 자연스러운' 의미 1개를 택해 설명
+- 모호하면 가장 일반적인 사용 의미 1개만 선택
+- 최대 120자 내로 간결하게"""
 
 def _fallback(term: str) -> Dict[str, Any]:
     return {
@@ -40,18 +41,7 @@ def _as_str_list(x):
         return [s.strip() for s in x.split(",") if s.strip()]
     return []
 
-def _coerce_schema(term: str, data: Dict[str, Any]) -> Dict[str, Any]:
-    data = data or {}
-    
-    # meaning_line이 없으면 fallback
-    if not data.get("meaning_line"):
-        return _fallback(term)
-    
-    # 과도한 길이 방지
-    if len(data["meaning_line"]) > 200:
-        data["meaning_line"] = data["meaning_line"][:200] + "..."
-    
-    return data
+# _coerce_schema 함수는 더 이상 사용하지 않음 (직접 처리로 대체)
 
 async def interpret_with_llm(term: str, context_sentence: Optional[str] = None) -> Dict[str, Any]:
     # 런타임에 클라이언트 생성 (import 시점 고정 문제 해결)
@@ -60,7 +50,11 @@ async def interpret_with_llm(term: str, context_sentence: Optional[str] = None) 
         print("[LLM ERROR] Cannot create OpenAI client - API key missing")
         return _fallback(term)
     
-    user_prompt = f"신조어: {term}\n문맥: {context_sentence or ''}".strip()
+    user_prompt = (
+        f"단어: {term}\n"
+        f"문맥: {context_sentence or '(문맥 없음)'}\n"
+        "위 규칙에 따라 JSON으로만 답하세요."
+    )
     
     async def _once():
         try:
@@ -82,7 +76,10 @@ async def interpret_with_llm(term: str, context_sentence: Optional[str] = None) 
             try:
                 data = json.loads(content)
                 print(f"[LLM] JSON parsed successfully")
-                return _coerce_schema(term, data)
+                line = data.get("meaning_line", "").strip()
+                if len(line) > 140: 
+                    line = line[:140].rstrip()
+                return {"meaning_line": line}
             except json.JSONDecodeError as e:
                 print(f"[LLM ERROR] JSON parse failed: {e}")
                 print(f"[LLM ERROR] Raw content: {content}")

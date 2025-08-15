@@ -1,5 +1,6 @@
 import os
 import time
+from typing import Optional
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
@@ -103,6 +104,79 @@ async def __debug_llm():
             "traceback": traceback.format_exc()
         }
         return {"ok": False, "error_details": error_details}
+
+@app.get("/__debug/cache")
+async def __debug_cache():
+    """캐시 내용을 확인하고 관리할 수 있는 디버그 엔드포인트"""
+    try:
+        from app.services.jargon_service import cache_key_for
+        
+        # 테스트용 캐시 키 생성
+        test_key = cache_key_for("테스트", "테스트 문맥")
+        
+        return {
+            "ok": True,
+            "cache_namespace": "jargon:v2",
+            "test_key": test_key,
+            "redis_connected": await _redis.ping() if _redis else False
+        }
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+@app.get("/__debug/cache/{term}")
+async def __debug_cache_term(term: str, context: Optional[str] = None):
+    """특정 term의 캐시 내용 확인"""
+    try:
+        from app.services.jargon_service import cache_key_for
+        
+        key = cache_key_for(term, context)
+        cached_value = await _redis.get(key) if _redis else None
+        
+        if cached_value:
+            import json
+            try:
+                parsed = json.loads(cached_value)
+                return {
+                    "ok": True,
+                    "key": key,
+                    "cached": True,
+                    "value": parsed,
+                    "ttl": await _redis.ttl(key) if _redis else None
+                }
+            except json.JSONDecodeError:
+                return {
+                    "ok": True,
+                    "key": key,
+                    "cached": True,
+                    "value": cached_value.decode('utf-8'),
+                    "raw": True
+                }
+        else:
+            return {
+                "ok": True,
+                "key": key,
+                "cached": False
+            }
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+
+@app.delete("/__debug/cache/{term}")
+async def __debug_cache_delete(term: str, context: Optional[str] = None):
+    """특정 term의 캐시 삭제"""
+    try:
+        from app.services.jargon_service import cache_key_for
+        
+        key = cache_key_for(term, context)
+        deleted = await _redis.delete(key) if _redis else 0
+        
+        return {
+            "ok": True,
+            "key": key,
+            "deleted": bool(deleted),
+            "deleted_count": deleted
+        }
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
 
 @app.get("/", tags=["Root"])
 async def read_root():

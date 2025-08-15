@@ -161,20 +161,58 @@ function showTooltipMeaningLine(meaningLine) {
   tip.style.top  = `${Math.round(y)}px`;
 }
 
-// 숨기기(선택)
+// 숨기기/제거 함수 (확실하게)
 function hideTooltipMeaningLine() {
   const tip = document.getElementById("__jargon_tip");
-  if (tip){ 
-    tip.dataset.state="hidden"; 
-    tip.style.display="none"; 
-  }
+  if (tip) tip.remove(); // display:none이 아니라 아예 제거
 }
 
-// 필요하다면 selection clear 시 자동 숨김
-document.addEventListener("selectionchange", () => {
-  const sel = window.getSelection?.();
-  if (!sel || !sel.toString().trim()) hideTooltipMeaningLine();
+// ===== 고급 내비게이션 가드 시스템 =====
+
+/** 페이지 컨텍스트에서 history를 진짜 후킹 */
+(function injectHistoryHookIntoPage(){
+  const code = `
+    (function(){
+      var dce = function(){ window.dispatchEvent(new Event("locationchange")); };
+      var _ps = history.pushState, _rs = history.replaceState;
+      history.pushState = function(){ var r=_ps.apply(this, arguments); dce(); return r; };
+      history.replaceState = function(){ var r=_rs.apply(this, arguments); dce(); return r; };
+      window.addEventListener("popstate", dce);
+      // 유튜브 고유 내비게이션 이벤트도 모두 치움
+      window.addEventListener("yt-navigate-start", dce, true);
+      window.addEventListener("yt-navigate-finish", dce, true);
+      window.addEventListener("yt-page-data-updated", dce, true);
+    })();
+  `;
+  const s = document.createElement('script');
+  s.textContent = code;
+  (document.head || document.documentElement).appendChild(s);
+  s.remove();
+})();
+
+/** content 쪽에서는 이벤트만 듣고 치우기 */
+window.addEventListener("locationchange", hideTooltipMeaningLine);
+
+// 안전망: 큰 DOM 교체가 일어나면 닫기(유튜브 페이지 전환 시 자주 발생)
+// __jtObserver.observe(document.body, { childList: true, subtree: true });
+
+/** 기존 닫힘 트리거 유지 */
+window.addEventListener("beforeunload", hideTooltipMeaningLine, { capture:true });
+window.addEventListener("pagehide", hideTooltipMeaningLine, { capture:true });
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") hideTooltipMeaningLine();
 });
+document.addEventListener("keydown", (e) => { 
+  if (e.key === "Escape") hideTooltipMeaningLine(); 
+});
+document.addEventListener("selectionchange", () => {
+  const sel = window.getSelection?.().toString().trim();
+  if (!sel) hideTooltipMeaningLine();
+});
+document.addEventListener("click", (e) => {
+  const tip = document.getElementById("__jargon_tip");
+  if (tip && !tip.contains(e.target)) hideTooltipMeaningLine();
+}, true);
 
 // API 설정
 const API_BASE = "http://localhost:8000/api/v1";
@@ -208,47 +246,131 @@ chrome.runtime.sendMessage({ type: "PING" }, (resp) => {
   }
 });
 
-// 주변 문장 추출 함수
-function getSurroundingSentence(selectedNode, selectedText) {
-  try {
-    if (!selectedNode || !selectedNode.parentNode) return "";
-    
-    let parent = selectedNode.parentNode;
-    let text = parent.textContent || "";
-    
-    // 선택된 텍스트 주변의 문장을 찾기
-    let startIndex = text.indexOf(selectedText);
-    if (startIndex === -1) return "";
-    
-    // 문장 시작과 끝 찾기
-    let sentenceStart = startIndex;
-    let sentenceEnd = startIndex + selectedText.length;
-    
-    // 앞쪽으로 문장 시작점 찾기
-    for (let i = startIndex; i >= 0; i--) {
-      if (text[i] === '.' || text[i] === '!' || text[i] === '?' || text[i] === '\n') {
-        sentenceStart = i + 1;
-        break;
-      }
-    }
-    
-    // 뒤쪽으로 문장 끝점 찾기
-    for (let i = startIndex + selectedText.length; i < text.length; i++) {
-      if (text[i] === '.' || text[i] === '!' || text[i] === '?' || text[i] === '\n') {
-        sentenceEnd = i;
-        break;
-      }
-    }
-    
-    return text.substring(sentenceStart, sentenceEnd).trim();
-  } catch (e) {
-    console.log('문맥 추출 오류:', e);
-    return "";
+// 메시지 수신 (탭 간 동기화 + 강제 안전망)
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg?.type === "JARGON_CACHE_UPDATED") {
+    cslog("cache updated from other tab", msg.key, msg.entry);
+    // 필요시 UI 업데이트 (예: 툴팁에 캐시 상태 표시)
   }
+  
+  if (msg?.type === "CLEAR_TIP") {
+    cslog("CLEAR_TIP received from background");
+    hideTooltipMeaningLine();
+  }
+});
+
+// 문장 추출 유틸 (개선된 버전)
+function extractSentenceAroundSelection(maxLen = 220) {
+  const sel = window.getSelection && window.getSelection();
+  if (!sel || sel.rangeCount === 0) return "";
+  
+  const text = (sel.anchorNode && sel.anchorNode.parentElement?.innerText) || document.body.innerText || "";
+  const chosen = sel.toString().trim();
+  if (!text || !chosen) return "";
+
+  // 현재 노드의 전체 텍스트 기준으로 문장 경계 찾기
+  const idx = text.indexOf(chosen);
+  if (idx < 0) return chosen; // 최소 폴백
+
+  // 간단한 문장 구분자 (한글 문장부호 포함)
+  const SEP = /[\.!\?\n\r\u2026]|[。！？]|[·]/g; // … 포함
+  
+  // 좌측 경계
+  let left = 0, m;
+  while ((m = SEP.exec(text)) !== null && m.index < idx) left = m.index + m[0].length;
+  
+  // 우측 경계
+  SEP.lastIndex = idx + chosen.length;
+  let right = text.length;
+  while ((m = SEP.exec(text)) !== null) { 
+    right = m.index + m[0].length; 
+    break; 
+  }
+
+  let sent = text.slice(left, right).trim();
+  if (sent.length > maxLen) {
+    // 너무 길면 드래그 중심으로 자르기
+    const center = idx - left + Math.floor(chosen.length/2);
+    const half = Math.floor(maxLen/2);
+    const start = Math.max(0, center - half);
+    sent = sent.slice(start, start + maxLen).trim();
+  }
+  return sent;
+}
+
+// ===== 오프라인 감지 =====
+function isOnline() { 
+  return navigator.onLine; 
+}
+
+// ===== 로컬 캐시 조회/저장 =====
+async function getFromLocal(term, context) {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(keyOf(term, context), (res) => {
+      const key = keyOf(term, context);
+      const entry = res[key];
+      if (!entry) return resolve(null);
+      
+      // TTL 체크
+      if (entry.ttl && Date.now() - entry.ts > entry.ttl * 1000) {
+        chrome.storage.local.remove(key);
+        return resolve(null);
+      }
+      resolve(entry);
+    });
+  });
+}
+
+async function saveToLocal(term, context, line) {
+  const key = keyOf(term, context);
+  const entry = {
+    line: line,
+    ts: Date.now(),
+    ttl: 7 * 24 * 60 * 60 // 7일
+  };
+  await chrome.storage.local.set({ [key]: entry });
+}
+
+// ===== 캐시 키 생성 (background와 동일한 로직) =====
+function keyOf(term, context) {
+  const h = context ? new TextEncoder().encode(context) : new Uint8Array();
+  let hash = 0; 
+  for (let b of h) {
+    hash = ((hash << 5) - hash) + b; 
+    hash |= 0;
+  }
+  const ctx8 = (hash >>> 0).toString(16).slice(0, 8);
+  return `${term}::${context ? ctx8 : "noctx"}`;
+}
+
+// ===== 우선순위 기반 해석 시스템 =====
+async function resolveMeaningLine(term, context) {
+  // 1) 탭 간 공유 캐시
+  const localEntry = await getFromLocal(term, context);
+  if (localEntry?.line) {
+    cslog("result from local cache");
+    return localEntry.line;
+  }
+
+  // 2) 로컬 사전 번들
+  const dict = await new Promise(r => 
+    chrome.storage.local.get("__jargon_local_dict", v => r(v["__jargon_local_dict"]))
+  );
+  if (dict && dict[term]) {
+    const line = `${term}: ${dict[term]}`;
+    saveToLocal(term, context, line); // 캐시에 올려서 이후 즉시 표시
+    cslog("result from local dictionary");
+    return line;
+  }
+
+  // 3) 네트워크 API
+  return await fetchJargonFromAPI(term, context);
 }
 
 // 백엔드 호출은 반드시 BG를 통해서만
 async function fetchJargonFromAPI(term, context) {
+  if (!isOnline()) throw new Error("offline");
+  
   cslog("sendMessage -> BG", { term, context });
   return new Promise((resolve, reject) => {
     chrome.runtime.sendMessage({ type: "FETCH_JARGON", term, context }, (resp) => {
@@ -257,6 +379,12 @@ async function fetchJargonFromAPI(term, context) {
       }
       if (!resp) return reject(new Error("No response from background"));
       if (resp.ok) {
+        // 캐시 상태 로깅
+        if (resp.fromCache) {
+          cslog("result from background cache");
+        } else {
+          cslog("result from API (cached for future)");
+        }
         // 서버는 {"meaning_line":"..."}을 반환
         resolve(resp.data?.meaning_line || resp.meaning_line || "");
       } else {
@@ -322,7 +450,8 @@ document.addEventListener('mouseup', async function() {
       if (text.includes(jargon)) {
         foundJargons.push({
           term: jargon,
-          meaning: JARGON_DATA[jargon]
+          meaning_line: JARGON_DATA[jargon],
+          isFromAPI: false
         });
         // 최대 3개까지만 인식
         if (foundJargons.length >= 3) {
@@ -335,24 +464,27 @@ document.addEventListener('mouseup', async function() {
       // 신조어가 발견되면 툴팁 표시 (여러 개일 경우 모두 표시)
       showJargonTooltip(foundJargons);
     } else {
-      // 로컬에 없는 경우 API 호출 시도
+      // 로컬에 없는 경우 우선순위 기반 해석 시도
       try {
-        const selectedNode = window.getSelection().anchorNode;
-        const context = getSurroundingSentence(selectedNode, text);
+        const contextSentence = extractSentenceAroundSelection(220); // ★ 컨텍스트 문장
         
-        console.log('API 호출 시도:', text, '문맥:', context);
+        console.log('해석 시도:', text, '문맥:', contextSentence);
         
         // 로딩 표시
-        showSimpleNotification('AI 해석 중... 잠시만 기다려주세요.');
+        showSimpleNotification('해석 중... 잠시만 기다려주세요.');
         
-        const apiResult = await fetchJargonFromAPI(text, context);
+        const line = await resolveMeaningLine(text, contextSentence); // ★ 우선순위 기반 해석
         
-        // API 결과로 툴팁 표시
-        showTooltipMeaningLine(apiResult);
+        // 결과로 툴팁 표시
+        showTooltipMeaningLine(line);
         
       } catch (error) {
-        console.error('API 호출 실패:', error);
-        showSimpleNotification(`'${text}'에 대한 해석을 가져오지 못했습니다. (${error.message})`);
+        console.error('해석 실패:', error);
+        if (String(error).includes("offline")) {
+          showTooltipMeaningLine(`${text}: (오프라인) 로컬 사전에 없는 표현이에요.`);
+        } else {
+          showTooltipMeaningLine(`${text}: 해석을 가져오지 못했습니다.`);
+        }
       }
     }
   } else {
@@ -367,35 +499,8 @@ document.addEventListener('mouseup', async function() {
   }
 });
 
-// 다른 곳 클릭 시 툴팁 닫기
-document.addEventListener('click', function(e) {
-  // 툴팁이나 알림창을 클릭한 경우는 무시
-  if (e.target.closest('#jargon-tooltip') || 
-      e.target.closest('[style*="position: fixed"][style*="z-index: 10002"]')) {
-    return;
-  }
-  
-  // 텍스트가 선택되어 있으면 클릭 이벤트 무시 (드래그 후 클릭 방지)
-  var selectedText = window.getSelection().toString().trim();
-  if (selectedText.length > 0) {
-    return;
-  }
-  
-  // 다른 곳을 클릭하면 툴팁 닫기
-  closeAllTooltips();
-});
-
-// 더블클릭 시 툴팁 닫기
-document.addEventListener('dblclick', function(e) {
-  // 툴팁이나 알림창을 더블클릭한 경우는 무시
-  if (e.target.closest('#jargon-tooltip') || 
-      e.target.closest('[style*="position: fixed"][style*="z-index: 10002"]')) {
-    return;
-  }
-  
-  // 다른 곳을 더블클릭하면 툴팁 닫기
-  closeAllTooltips();
-});
+// 기존 click/dblclick 이벤트는 새로운 내비게이션 가드 시스템으로 대체됨
+// (더 포괄적이고 안정적인 툴팁 제거 기능 제공)
 
 // 신조어 툴팁 표시
 function showJargonTooltip(jargons) {
@@ -465,8 +570,11 @@ function showJargonTooltip(jargons) {
   `;
   
   // 마우스 위치 근처에 표시
-  var mouseX = event.clientX;
-  var mouseY = event.clientY;
+  // var mouseX = event.clientX;
+  // var mouseY = event.clientY;
+  const pt = getAnchorPoint();
+  var mouseX = pt.x;
+  var mouseY = pt.y;
   
   tooltip.style.cssText = `
     position: fixed;
