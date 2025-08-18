@@ -7,16 +7,21 @@ from app.services.ai_service import interpret_with_llm
 
 # 캐시 설정
 CACHE_TTL_SEC = 3600 * 24 * 7  # 7일
-CACHE_NS = "jargon:v2"  # ← 기존 "jargon:"에서 v2로 올려 과거 실패 캐시 무시
+CACHE_NS = "jargon:v3"  # v2 → v3로 올려서 기존 캐시 무효화
 
-def _cache_key(term: str, context_sentence: Optional[str]) -> str:
+def _cache_key(term: str, context_sentence: Optional[str] = None) -> str:
+    # 캐시 키는 term만으로 생성 (문맥 무시)
+    return f"{CACHE_NS}:{term}:_global"
+
+def _cache_key_old(term: str, context_sentence: Optional[str]) -> str:
+    # 기존 방식 (디버그용으로 보관)
     ctx = (context_sentence or "").strip()
     ctx_hash = hashlib.md5(ctx.encode("utf-8")).hexdigest()[:8] if ctx else "noctx"
     return f"{CACHE_NS}:{term}:{ctx_hash}"
 
 # 외부 디버그에서 쓰기 좋게 보조 함수 노출
 def cache_key_for(term: str, context_sentence: Optional[str]) -> str:
-    return _cache_key(term, context_sentence)
+    return _cache_key(term)  # 문맥 제거
 
 def _is_fallback_line(meaning_line: str) -> bool:
     if not isinstance(meaning_line, str):
@@ -46,7 +51,10 @@ async def get_interpretation(
     nocache: bool = False,
     refresh: bool = False,
 ) -> Dict[str, Any]:
-    key = _cache_key(term, context_sentence)
+    # 캐시 키는 term만으로 생성
+    key = _cache_key(term)  # 🔥 문맥 제거
+    
+    print(f"[CACHE] Using global key for term: {key}")
 
     if not nocache and not refresh:
         cached = await _safe_get(rds, key)
@@ -59,20 +67,27 @@ async def get_interpretation(
             if _is_fallback_line(line):
                 print(f"[CACHE IGNORE: fallback-hit] {key}")
             else:
-                print(f"[CACHE HIT] {key}")
+                print(f"[CACHE HIT] {key} (global cache)")
                 return {"meaning_line": line}
 
-    print(f"[CACHE MISS{' (nocache)' if nocache else ''}{' (refresh)' if refresh else ''}] {key} → LLM")
+    print(f"[CACHE MISS{' (nocache)' if nocache else ''}{' (refresh)' if refresh else ''}] {key} → LLM with context")
+    
+    # 🔥 LLM 호출할 때는 여전히 문맥 포함
     data = await interpret_with_llm(term, context_sentence)
+    
     line = data.get("meaning_line") if isinstance(data, dict) else str(data or "")
     if _is_fallback_line(line):
         print(f"[CACHE SKIP: fallback] {key}")
         return {"meaning_line": line}
 
-    # refresh=true면 성공값으로 덮어씀
+    # 성공한 결과를 global 키로 저장
     await _safe_set(rds, key, json.dumps({"meaning_line": line}, ensure_ascii=False), ex=CACHE_TTL_SEC)
-    print(f"[CACHE SET] {key}")
+    print(f"[CACHE SET] {key} (global cache)")
     return {"meaning_line": line}
+
+# 기존 함수들 유지 (하위 호환성)
+from sqlalchemy import select
+from app import models
 
 async def get_all_jargon_terms(db: AsyncSession):
     result = await db.execute(select(models.Jargon.term))
