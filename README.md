@@ -209,9 +209,11 @@ DELETE /__debug/cache/{term}    # 특정 term 캐시 삭제
 4. **캐시 활용**: 동일한 신조어는 즉시 응답
 
 ![로딩 상태](picture/loading.png)
+
 *신조어 해석 중 로딩 화면*
 
 ![결과 화면](picture/result.png)
+
 *신조어 해석 결과 툴팁*
 
 ### 고급 기능
